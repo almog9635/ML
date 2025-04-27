@@ -1,26 +1,39 @@
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
+os.environ["USE_TF"] = "0"
+import tensorflow as tf
+import keras
+model = keras.saving.load_model("model/truck_delivery_model.keras",
+                                compile=False, safe_mode=False)
 import numpy as np
 import pandas as pd
 from flask import Flask, request, jsonify
-import tensorflow as tf
 from nltk.stem import PorterStemmer
 from nltk.corpus import stopwords
 import re, joblib
 from collections import Counter
+import json
 import nltk
+from sentence_transformers import SentenceTransformer
 
 nltk.download('stopwords')
-# Load preprocessing resources
+
 idf_values = joblib.load("model/idf_values.pkl")
 training_columns = joblib.load("model/training_columns.pkl")
 mlb = joblib.load("model/mlb.pkl")
 
-# Load TensorFlow model
 model = tf.keras.models.load_model("model/truck_delivery_model.keras")
 
-# Initialize NLP tools
 ps = PorterStemmer()
 stop_words = set(stopwords.words('english'))
 stop_words.discard('not')
+
+kmeans = joblib.load("model/kmeans_3clusters.joblib")        # ➌ NEW
+with open("model/cluster_names.json") as f:                  # ➍ NEW
+    CLUSTER_NAMES = {int(k): v for k, v in json.load(f).items()}
+encoder = SentenceTransformer(                               # ➎ NEW
+    'all-MiniLM-L6-v2', cache_folder="model/transformer_cache"
+)
 
 def preprocess_text(text):
     text = re.sub(r'[^a-zA-Z]', ' ', text).lower()
@@ -64,6 +77,19 @@ def predict():
     response = [{"text": text, "predicted_tags": tags} for text, tags in zip(texts, predicted_tags)]
     print(response)
     return jsonify(response)
+
+@app.route('/cluster', methods=['POST'])
+def cluster():
+    data = request.json
+    sentences = data.get('sentences', [])
+    if not isinstance(sentences, list) or not sentences:
+        return jsonify({"error": '"sentences" must be a non-empty list'}), 400
+
+    embeddings = encoder.encode(sentences)
+    cluster_ids = kmeans.predict(embeddings).tolist()
+    names = [CLUSTER_NAMES.get(i, f"Cluster {i}") for i in cluster_ids]
+
+    return jsonify({"cluster_id": cluster_ids, "cluster_name": names})
 
 
 if __name__ == '__main__':
