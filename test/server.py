@@ -31,7 +31,7 @@ debriefs = [
         "id": "DB565",
         "background": """Overview: A full preventive maintenance cycle was completed before departure, ensuring that all systems were fully operational and up to date. Key Issues: During transit, minor diagnostic alerts were triggered by routine system fluctuations, yet these were anticipated given the comprehensive maintenance effort. Resolution: Scheduled diagnostic stops allowed maintenance crews to address and resolve the alerts quickly, thereby preventing any disruption to the overall operation.""",
         "trip_progress": """Timeline: 08:00 AM - Depart after thorough maintenance clearance; 09:00 AM - Scheduled diagnostic stop conducted; 09:45 AM - Minor alerts resolved successfully; 10:30 AM - Transit resumes smoothly; 11:15 AM - Operation concludes with all systems stable; 11:30 AM - Final review confirms efficiency.""",
-        "route_consideration": """Route Consideration: The route was selected after a detailed review of service center locations along the path, ensuring easy access to technical support whenever necessary. Road quality, traffic patterns, and accessibility to maintenance facilities were all considered to guarantee a reliable route that would not compromise vehicle performance."""
+        "route_consideration": """Route Consideration: The route was selected after a detailed review of service center locations along the path, ensuring easy access to technical support whenever necessary. Road quality, traffic patterns, and accessibility to maintenance facilities were all considered to guarantee a reliable route that would not compromise vehicle performance.""",
     }
 ]
 

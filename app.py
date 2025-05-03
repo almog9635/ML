@@ -28,10 +28,10 @@ ps = PorterStemmer()
 stop_words = set(stopwords.words('english'))
 stop_words.discard('not')
 
-kmeans = joblib.load("model/kmeans_3clusters.joblib")        # ➌ NEW
-with open("model/cluster_names.json") as f:                  # ➍ NEW
+kmeans = joblib.load("model/kmeans_3clusters.joblib")
+with open("model/cluster_names.json") as f:
     CLUSTER_NAMES = {int(k): v for k, v in json.load(f).items()}
-encoder = SentenceTransformer(                               # ➎ NEW
+encoder = SentenceTransformer(
     'all-MiniLM-L6-v2', cache_folder="model/transformer_cache"
 )
 
@@ -57,39 +57,38 @@ app = Flask(__name__)
 @app.route('/predict', methods=['POST'])
 def predict():
     data = request.json
-    print(data)
     texts = data.get('texts', [])
-    print(texts)
+    sentences = data.get('lessons', [])
+    response = {}
 
-    processed_texts = [preprocess_text(text) for text in texts]
-    word_counts = [Counter(doc) for doc in processed_texts]
-    tf_values = [compute_tf(counter, doc) for counter, doc in zip(word_counts, processed_texts)]
-    tfidf_values = [compute_tfidf(tf_dict, idf_values) for tf_dict in tf_values]
+    if texts:
+        processed_texts = [preprocess_text(text) for text in texts]
+        word_counts = [Counter(doc) for doc in processed_texts]
+        tf_values = [compute_tf(counter, doc) for counter, doc in zip(word_counts, processed_texts)]
+        tfidf_values = [compute_tfidf(tf_dict, idf_values) for tf_dict in tf_values]
 
-    X_new_df = pd.DataFrame(tfidf_values).fillna(0)
-    X_new_df = X_new_df.reindex(columns=training_columns, fill_value=0)
+        X_new_df = pd.DataFrame(tfidf_values).fillna(0)
+        X_new_df = X_new_df.reindex(columns=training_columns, fill_value=0)
 
-    predictions = model.predict(X_new_df)
-    threshold = 0.5
-    y_pred_binary = (predictions > threshold).astype(int)
-    predicted_tags = mlb.inverse_transform(y_pred_binary)
+        predictions = model.predict(X_new_df)
+        threshold = 0.5
+        y_pred_binary = (predictions > threshold).astype(int)
+        predicted_tags = mlb.inverse_transform(y_pred_binary)
 
-    response = [{"text": text, "predicted_tags": tags} for text, tags in zip(texts, predicted_tags)]
-    print(response)
+        response["tag_predictions"] = [{"text": text, "predicted_tags": tags} for text, tags in
+                                       zip(texts, predicted_tags)]
+
+    if sentences:
+        embeddings = encoder.encode(sentences)
+        cluster_ids = kmeans.predict(embeddings).tolist()
+        names = [CLUSTER_NAMES.get(i, f"Cluster {i}") for i in cluster_ids]
+
+        response["clustering_results"] = {"cluster_id": cluster_ids, "cluster_name": names}
+
+    if not texts and not sentences:
+        return jsonify({"error": "Either 'texts' or 'sentences' must be provided."}), 400
+
     return jsonify(response)
-
-@app.route('/cluster', methods=['POST'])
-def cluster():
-    data = request.json
-    sentences = data.get('sentences', [])
-    if not isinstance(sentences, list) or not sentences:
-        return jsonify({"error": '"sentences" must be a non-empty list'}), 400
-
-    embeddings = encoder.encode(sentences)
-    cluster_ids = kmeans.predict(embeddings).tolist()
-    names = [CLUSTER_NAMES.get(i, f"Cluster {i}") for i in cluster_ids]
-
-    return jsonify({"cluster_id": cluster_ids, "cluster_name": names})
 
 
 if __name__ == '__main__':
